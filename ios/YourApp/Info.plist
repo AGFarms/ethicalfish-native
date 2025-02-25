@@ -1,0 +1,6 @@
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>App needs Bluetooth to connect to GoPro</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>App needs Bluetooth to connect to GoPro</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>App needs location to scan for WiFi networks</string> 
