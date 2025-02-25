@@ -10,7 +10,7 @@ export const verifyZkp = async (proof: any) => {
       .risc0()
       .execute({
         proofData: {
-          vk: 'geofence',  // Replace with actual verification key
+          vk: 'geofence_veri',  // Replace with actual verification key
           proof: proof.proof,
           publicSignals: proof.publicSignals,
         },
