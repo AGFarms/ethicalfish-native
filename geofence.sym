@@ -1,0 +1,5 @@
+1,1,0,main.latitude
+2,2,0,main.longitude
+3,3,0,main.geofenceCenterLat
+4,4,0,main.geofenceCenterLon
+5,5,0,main.geofenceRadius

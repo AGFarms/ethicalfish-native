@@ -9,14 +9,22 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-community/geolocation": "^3.4.0",
+    "@react-native-community/viewpager": "^5.0.11",
+    "@react-navigation/native": "^7.0.14",
+    "@react-navigation/stack": "^7.1.1",
     "expo": "~52.0.37",
     "expo-status-bar": "~2.0.1",
     "react": "18.3.1",
-    "react-native": "0.76.7"
+    "react-native": "0.76.7",
+    "react-native-geolocation-service": "^5.3.1",
+    "snarkjs": "^0.7.5",
+    "zkverifyjs": "^0.6.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "@types/snarkjs": "^0.7.9",
     "typescript": "^5.3.3"
   },
   "private": true
