@@ -10,7 +10,7 @@ export const verifyZkp = async (proof: any) => {
       .risc0()
       .execute({
         proofData: {
-          vk: 'your-verification-key',  // Replace with actual verification key
+          vk: '',  // Replace with actual verification key
           proof: proof.proof,
           publicSignals: proof.publicSignals,
         },
