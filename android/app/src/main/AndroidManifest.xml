@@ -13,6 +13,7 @@
   <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
   <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED"/>
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
