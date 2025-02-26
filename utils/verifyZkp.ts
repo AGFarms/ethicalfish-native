@@ -1,7 +1,4 @@
 import { zkVerifySession } from 'zkverifyjs';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 export const verifyZkp = async (proof: any) => {
   try {
