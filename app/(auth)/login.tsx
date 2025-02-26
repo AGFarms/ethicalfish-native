@@ -1,5 +1,5 @@
-import { View, TextInput, Button, StyleSheet, Text } from 'react-native';
-import { useState } from 'react';
+import { View, TextInput, Button, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -8,7 +8,17 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
-  const { signInWithOTP, verifyOTP, magic } = useAuth();
+  const { signInWithOTP, verifyOTP, magic, user, signOut } = useAuth();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+
+  useEffect(() => {
+    const update = (async () => {
+      setIsLoggedIn(await magic.user.isLoggedIn());
+    })
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [magic]);
 
   const handleSendOTP = async () => {
     if (!email) return;
@@ -39,6 +49,18 @@ export default function LoginScreen() {
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
+        <TouchableOpacity 
+          style={{
+            backgroundColor: 'red',
+            padding: 10,
+            borderRadius: 5,
+          }}
+        onPress={() => {
+          signOut()
+        }}>
+          <Text>sign out</Text>
+        </TouchableOpacity>
+        <Text style={{color: 'white'}}>{JSON.stringify(isLoggedIn)}</Text>
         <magic.Relayer />
         {!showOtpInput ? (
           <>

@@ -1,47 +1,18 @@
+// @ts-nocheck
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Magic } from '@magic-sdk/react-native-expo';
 import { FlowExtension } from '@magic-ext/flow';
 import { useRouter, useSegments } from 'expo-router';
 import * as fcl from '@onflow/fcl';
+import flowJSON from '../../flow/ethicalfish/flow.json';
+import { authz } from '@/lib/authz';
 
-// Configure FCL
-fcl.config()
-  .put("accessNode.api", "https://rest-testnet.onflow.org")
-  .put("discovery.wallet", "https://fcl-discovery.onflow.org/testnet/authn")
-  .put("app.detail.title", "Your App Name")
-  .put("app.detail.icon", "https://yourapp.com/icon.png");
-
-const createUserWallet = async (parentAddress: string, parentPrivateKey: string) => {
-  const transactionId = await fcl.mutate({
-    cadence: `
-      import FlowToken from 0x7e60df042a9c0868
-      import FungibleToken from 0x9a0766d93b6608b7
-      
-      transaction {
-        prepare(signer: AuthAccount) {
-          let newAccount = AuthAccount(payer: signer)
-          
-          // Fund the new account with some FLOW
-          let vault = signer.borrow<&FlowToken.Vault>(from: /storage/flowTokenVault)
-            ?? panic("Could not borrow Flow token vault reference")
-            
-          let newVault <- vault.withdraw(amount: 0.001) // Min amount for account creation
-          
-          let newWallet <- newAccount.storage.save<@FlowToken.Vault>(<-newVault, to: /storage/flowTokenVault)
-          newAccount.link<&FlowToken.Vault{FungibleToken.Receiver}>(/public/flowTokenReceiver, target: /storage/flowTokenVault)
-          newAccount.link<&FlowToken.Vault{FungibleToken.Balance}>(/public/flowTokenBalance, target: /storage/flowTokenVault)
-        }
-      }
-    `,
-    args: [],
-    payer: fcl.authz,
-    proposer: fcl.authz,
-    authorizations: [fcl.authz],
-    limit: 999
-  });
-
-  return fcl.tx(transactionId).onceSealed();
-};
+fcl.config({
+    "accessNode.api": "https://rest-testnet.onflow.org",
+    "flow.network": "testnet"
+}).load({
+    flowJSON: flowJSON
+})
 
 type AuthContextType = {
   isLoading: boolean;
@@ -50,8 +21,7 @@ type AuthContextType = {
   signInWithOTP: (email: string) => Promise<void>;
   verifyOTP: (otp: string) => Promise<any>;
   signOut: () => Promise<void>;
-  magic: any | null;
-  userWallet: string | null;
+  magic: InstanceType<typeof Magic>;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -61,12 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [magic] = useState(() => new Magic(process.env.EXPO_PUBLIC_MAGIC_PUBLIC_KEY!, {
-    extensions: [new FlowExtension({ network: 'testnet', rpcUrl: 'https://rpc.ankr.com/flow/testnet' })]
+    extensions: [new FlowExtension({ network: 'testnet', rpcUrl: 'https://rest-testnet.onflow.org' })]
   }));
   const router = useRouter();
   const segments = useSegments();
   const [loginHandle, setLoginHandle] = useState<any>(null);
-  const [userWallet, setUserWallet] = useState<string | null>(null);
 
   useEffect(() => {
     checkUser();
@@ -124,56 +93,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOTP = async (otp: string) => {
     try {
-      if (!loginHandle) throw new Error('No active login session');
+      console.log('Starting OTP verification process...');
       
+      if (!loginHandle) {
+        console.error('No active login handle found');
+        throw new Error('No active login session');
+      }
+      
+      console.log('Emitting verify-email-otp event with OTP:', otp);
       loginHandle.emit('verify-email-otp', otp);
       
+      console.log('Waiting for OTP verification result...');
       const result = await new Promise((resolve, reject) => {
-        loginHandle.on('done', resolve);
+        loginHandle.on('done', (res) => {
+          console.log('OTP verification successful');
+          resolve(res);
+        });
         loginHandle.on('invalid-email-otp', () => {
+          console.error('Invalid OTP provided');
           reject(new Error('Invalid OTP'));
         });
       });
 
+      console.log('OTP verified successfully, creating child wallet...');
+      let txid = await fcl.mutate({
+        cadence: `
+          transaction {
+            prepare(signer: &Account) {
+              signer.createChildAccount()
+            }
+          }
+        `,
+        payer: authz(
+            "0x2950c37fbc229852", 
+            "0", 
+            "2cfbe81e1b4fec4b0af9b54f466b535416a971d0324b24549cb3de88be1ca6b2"
+        ),
+        authorizations: [magic.flow.authorization],
+        proposer: magic.flow.authorization
+      });
+
+      console.log('Child wallet creation transaction submitted with ID:', txid);
+      console.log('Updating user authentication state...');
       await checkUser();
-
-      // Create Flow wallet for new user
-      if (!userWallet) {
-        try {
-          const parentWalletAddress = process.env.EXPO_PUBLIC_FLOW_PARENT_WALLET_ADDRESS!;
-          const parentWalletPrivateKey = process.env.EXPO_PUBLIC_FLOW_PARENT_WALLET_KEY!;
-          
-          const walletResult = await createUserWallet(
-            parentWalletAddress, 
-            parentWalletPrivateKey
-          );
-          
-          setUserWallet(walletResult.events[0].data.address);
-          
-          // Store wallet address in user metadata
-          await magic.user.updateMetadata({
-            flowWalletAddress: walletResult.events[0].data.address
-          });
-          
-        } catch (error) {
-          console.error('Error creating Flow wallet:', error);
-          // Continue with auth flow even if wallet creation fails
-        }
-      }
-
+      
+      console.log('OTP verification process completed successfully');
       return result;
     } catch (error) {
-      console.error('Error verifying OTP:', error);
+      console.error('Error during OTP verification process:', error.stack);
       throw error;
     }
   };
 
   const signOut = async () => {
     try {
+      console.log('Starting sign out process...');
+      console.log('Calling magic.user.logout()...');
       await magic.user.logout();
+      console.log('Successfully logged out from Magic');
+      console.log('Setting authentication state to false...');
       setIsAuthenticated(false);
+      console.log('Clearing user data...');
       setUser(null);
+      console.log('Sign out process completed successfully');
     } catch (error) {
+      console.error('Error during sign out:', error);
       throw error;
     }
   };
@@ -186,8 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithOTP, 
       verifyOTP, 
       signOut, 
-      magic,
-      userWallet 
+      magic 
     }}>
       {children}
     </AuthContext.Provider>
