@@ -1,4 +1,5 @@
-import { zkVerifySession } from 'zkverifyjs';
+import snarkjs from 'snarkjs';
+import { Library, zkVerifySession } from 'zkverifyjs';
 
 export const verifyZkp = async (proof: any) => {
   try {
@@ -7,14 +8,15 @@ export const verifyZkp = async (proof: any) => {
 
     // Verify the proof using the public signals
     const { events, transactionResult } = await session.verify()
-      .groth16()
-      .execute({
-        proofData: {
-          vk: 'geofence_verification_key',  // Replace with actual verification key
-          proof: proof.proof,
-          publicSignals: proof.publicSignals,
-        },
-      });
+      .groth16(Library.snarkjs, CurveType.bn254)
+        .execute({
+          proofData: {
+            vk: 'geofence_verification_key',
+            proof: proof.proof,
+            publicSignals: proof.publicSignals
+          }
+        });
+      
 
     // Wait for transaction result
     const transactionInfo = await transactionResult;
