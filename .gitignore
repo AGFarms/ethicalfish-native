@@ -40,3 +40,4 @@ app-example
 # flow
 keys.secret
 testnet-address
+flow/.tmp/
