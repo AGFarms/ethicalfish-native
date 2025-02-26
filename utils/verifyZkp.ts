@@ -1,9 +1,12 @@
 import { zkVerifySession } from 'zkverifyjs';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const verifyZkp = async (proof: any) => {
   try {
     // Initialize zkVerify session with your account (use your actual seed phrase)
-    const session = await zkVerifySession.start().Testnet().withAccount('xpjk4zBVPaWFKXArnCZjuiLVvatqav4suRqsXh1k21jKi2UnQ');
+    const session = await zkVerifySession.start().Testnet().withAccount(process.env.SEEDPHRASE!);
 
     // Verify the proof using the public signals
     const { events, transactionResult } = await session.verify()
