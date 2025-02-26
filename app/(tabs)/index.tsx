@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Alert, Platform, PermissionsAndroid, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { View, Alert, Platform, PermissionsAndroid, ActivityIndicator, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
 import { BleManager, Device } from 'react-native-ble-plx';
 import WifiManager from 'react-native-wifi-reborn';
 import {VLCPlayer} from 'react-native-vlc-media-player';
@@ -51,16 +51,17 @@ export default function App() {
     bluetooth: 'disconnected',
     wifi: 'disconnected'
   });
+  const [location, setLocation] = useState({ latitude: null, longitude: null });
 
-  const recreateBleManager = () => {
+  function recreateBleManager() {
     console.log('Recreating BLE manager');
     if (bleManager) {
       bleManager.destroy();
     }
     setBleManager(new BleManager());
-  };
+  }
 
-  const requestPermissions = async () => {
+  async function requestPermissions() {
     if (Platform.OS === 'android') {
       const granted = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
@@ -75,10 +76,9 @@ export default function App() {
       );
     }
     return true;
-  };
+  }
   
-
-  const getStatusColor = (status: ConnectionStatus) => {
+  function getStatusColor(status: ConnectionStatus) {
     switch (status) {
       case 'connected':
         return '#4CAF50';
@@ -89,16 +89,16 @@ export default function App() {
     }
   };
 
-  const handleReconnect = async () => {
+  async function handleReconnect() {
     console.log('Reconnecting...');
     setDevice(null);
     setStreamUrl('');
     setConnectionStates(prev => ({ ...prev, bluetooth: 'disconnected', wifi: 'disconnected' }));
     recreateBleManager();
     await connectToGoPro();
-  };
+  }
 
-  const connectToGoPro = async () => {
+  async function connectToGoPro() {
     try {
       const btState = await bleManager.state();
       console.log('Bluetooth state:', btState);
@@ -186,13 +186,14 @@ export default function App() {
     }
   };
 
-  const connectToGoProWifi = async () => {
+  async function connectToGoProWifi() {
     try {
       setConnectionStates(prev => ({ ...prev, wifi: 'connecting' }));
       console.log('Starting WiFi connection process...');
       setStatus('Scanning WiFi networks...');
       const networks = await WifiManager.loadWifiList();
       console.log('Available networks:', networks.length);
+      console.log(networks.map(network => network.SSID));
       const goProNetwork = networks.find(network => 
         network.SSID.startsWith(WIFI_AP_SSID_PREFIX)
       );
@@ -228,18 +229,33 @@ export default function App() {
     }
   };
 
+  async function fetchGPSData() {
+    try {
+      const response = await fetch('http://10.5.5.9/gp/gpControl/status');
+      const data = await response.json();
+      if (data.status && data.status['33']) {  // Check if GPS data exists
+        setLocation({
+          latitude: data.status['33'],
+          longitude: data.status['34']
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching GPS data:', error);
+    }
+  }
+
   useEffect(() => {
     console.log('App mounted, starting connection process');
     let mounted = true;
 
-    const cleanup = () => {
+    function cleanup() {
       console.log('Cleaning up BLE');
       bleManager.stopDeviceScan();
       if (device) {
         device.cancelConnection();
       }
       bleManager.destroy();
-    };
+    }
 
     if (mounted) {
       connectToGoPro();
@@ -251,14 +267,34 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let interval: any;
+    console.log('connectionStates.wifi', connectionStates.wifi);
+    if (connectionStates.wifi === 'connected') {
+      interval = setInterval(fetchGPSData, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [connectionStates.wifi]);
+
   return (
     <View style={{ flex: 1, backgroundColor: 'black' }}>
+      <View style={styles.gpsContainer}>
+        <Text style={styles.gpsText}>
+          {location.latitude !== null ? 
+            `Lat: ${location.latitude}\nLong: ${location.longitude}` : 
+            'GPS: Waiting...'
+          }
+        </Text>
+      </View>
+
       <View style={{ 
         position: 'absolute', 
         top: 40, 
         right: 20, 
         alignItems: 'flex-end',
-        zIndex: 2 
+        zIndex: 1000
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
           <View style={{ 
@@ -284,12 +320,11 @@ export default function App() {
 
         {(connectionStates.bluetooth === 'disconnected' || connectionStates.wifi === 'disconnected') && (
           <TouchableOpacity 
-            onPress={()=>{handleReconnect()}}
-            style={{ marginTop: 4 }}
+            onPress={handleReconnect}
+            style={styles.reconnectButton}
+            activeOpacity={0.7}
           >
-            <Text style={{ color: 'white' }}>
-              Reconnect
-            </Text>
+            <Text style={styles.reconnectText}>Reconnect</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -337,3 +372,32 @@ export default function App() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  gpsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 8,
+    borderRadius: 4
+  },
+  gpsText: {
+    color: 'white',
+    fontFamily: 'monospace',
+  },
+  reconnectButton: {
+    backgroundColor: '#FF4444',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  reconnectText: {
+    color: 'white',
+    fontWeight: 'bold',
+  }
+});
