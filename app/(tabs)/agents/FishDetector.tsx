@@ -1,11 +1,18 @@
-import React from 'react';
-import { View } from 'react-native';
-import { Camera } from 'react-native-vision-camera';
+// geofence.circom (simplified)
 
-interface FishDetectorProps {
-  cameraRef: React.RefObject<Camera>;
+template Geofence() {
+  signal input latitude;
+  signal input longitude;
+  signal input geofenceCenterLat;
+  signal input geofenceCenterLon;
+  signal input geofenceRadius;
+
+  // Logic to calculate distance from geofence center
+  var distance = ((latitude - geofenceCenterLat)^2 + (longitude - geofenceCenterLon)^2)^(1/2);
+
+  // Constraint to check if inside the geofence
+  assert(distance < geofenceRadius);
 }
 
-export const FishDetector: React.FC<FishDetectorProps> = ({ cameraRef }) => {
-  return <View />;
-}; 
+component main = Geofence();
+
