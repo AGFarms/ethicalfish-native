@@ -1,5 +1,5 @@
 import snarkjs from 'snarkjs';
-import { Library, zkVerifySession } from 'zkverifyjs';
+import { CurveType, Library, zkVerifySession } from 'zkverifyjs';
 
 export const verifyZkp = async (proof: any) => {
   try {
