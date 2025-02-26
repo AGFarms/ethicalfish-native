@@ -7,7 +7,7 @@ export const verifyZkp = async (proof: any) => {
 
     // Verify the proof using the public signals
     const { events, transactionResult } = await session.verify()
-      .risc0()
+      .groth16()
       .execute({
         proofData: {
           vk: 'geofence_verification_key',  // Replace with actual verification key
