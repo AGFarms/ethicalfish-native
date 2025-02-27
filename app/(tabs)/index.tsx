@@ -191,19 +191,6 @@ export default function App() {
       setConnectionStates(prev => ({ ...prev, wifi: 'connecting' }));
       console.log('Starting WiFi connection process...');
       setStatus('Scanning WiFi networks...');
-      const networks = await WifiManager.loadWifiList();
-      console.log('Available networks:', networks.length);
-      console.log(networks.map(network => network.SSID));
-      const goProNetwork = networks.find(network => 
-        network.SSID.startsWith(WIFI_AP_SSID_PREFIX)
-      );
-
-      if (!goProNetwork) {
-        console.log('No GoPro network found');
-        throw new Error('GoPro WiFi network not found');
-      }
-
-      console.log('Found GoPro network:', goProNetwork.SSID);
       setStatus('Connecting to GoPro WiFi...');
       await WifiManager.connectToProtectedSSID(
         'GP50059988',

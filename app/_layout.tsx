@@ -5,15 +5,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { Magic } from "@magic-sdk/react-native-expo"
+import 'react-native-get-random-values'
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from './contexts/AuthContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-
-const magic = new Magic(process.env.EXPO_PUBLIC_MAGIC_PUBLIC_KEY!);
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
