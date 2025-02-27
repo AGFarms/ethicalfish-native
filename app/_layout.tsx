@@ -8,7 +8,8 @@ import 'react-native-reanimated';
 import 'react-native-get-random-values'
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/app/contexts/AuthContext';
+import { View, Text } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -18,6 +19,8 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
+
+  const { isAuthenticated, isLoading } = useAuth();
   
   useEffect(() => {
     if (loaded) {
@@ -27,6 +30,12 @@ export default function RootLayout() {
 
   if (!loaded) {
     return null;
+  }
+
+  if (isLoading) {
+    return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Loading...</Text>
+    </View>;
   }
 
   return (
