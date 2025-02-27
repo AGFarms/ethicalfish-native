@@ -59,7 +59,7 @@ export default function ExchangePage() {
             <Image
               source={{ uri: fish.imageUrl }}
               style={styles.fishImage}
-              defaultSource={require('../assets/images/EthicalFishLogo-greent .png')}
+              defaultSource={require('../assets/images/EthicalFishLogo-green.png')}
             />
             <View style={styles.fishInfo}>
               <Text style={styles.fishName}>{fish.name}</Text>
