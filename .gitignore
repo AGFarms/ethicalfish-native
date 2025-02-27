@@ -41,3 +41,4 @@ app-example
 keys.secret
 testnet-address
 flow/.tmp/
+.tmp/
