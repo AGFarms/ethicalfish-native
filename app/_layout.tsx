@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 
 function AuthWrapper() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
