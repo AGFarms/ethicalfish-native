@@ -40,14 +40,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthProvider>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(auth)/login" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="+not-found" options={{ headerShown: true }} />
         </Stack>
         <StatusBar style="auto" />
-      </AuthProvider>
     </ThemeProvider>
   );
 }
