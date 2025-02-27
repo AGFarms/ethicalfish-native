@@ -47,10 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = magic.user.getInfo();
     data.on('done', (user) => {
       console.log('Got User Data', user);
+      setUser(user);
+      setIsAuthenticated(true);
+      setIsLoading(false);
     });
 
     data.on('error', (error) => {
       console.error('Error getting user data:', error);
+      setIsLoading(false);
     });
   };
 
@@ -103,6 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('OTP verification process completed successfully');
     } catch (error) {
       throw error;
+    } finally {
+      checkUser();
     }
   };
 

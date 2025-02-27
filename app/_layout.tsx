@@ -1,21 +1,32 @@
 import { Slot, Stack } from 'expo-router'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import 'react-native-get-random-values'
-import { SplashScreen } from 'expo-router'
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+
+function AuthWrapper() {
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/(auth)')
+    }
+  }, [isAuthenticated])
+
+  return <Slot />
+}
 
 export default function RootLayout() {
-
   return (
     <SafeAreaProvider>
-    <AuthProvider>
-      <View style={{backgroundColor: 'black', flex: 1}}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-        </Stack>
-      </View>
-    </AuthProvider>
+      <AuthProvider>
+        <View style={{backgroundColor: 'black', flex: 1}}>
+          <AuthWrapper />
+        </View>
+      </AuthProvider>
     </SafeAreaProvider>
   )
 }
