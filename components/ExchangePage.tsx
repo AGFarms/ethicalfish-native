@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native";
 import { useState } from "react";
-import { LinearGradient } from 'expo-linear-gradient';
 
 interface FishNFT {
   id: string;
@@ -17,14 +16,14 @@ const mockFishNFTs: FishNFT[] = [
     name: 'Golden Tuna',
     rarity: 'Legendary',
     value: 0.5,
-    imageUrl: require('../assets/images/EthicalFishLogo-green.png')
+    imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
   },
   {
     id: '2',
     name: 'Crystal Bass',
     rarity: 'Epic',
     value: 0.3,
-    imageUrl: require('../assets/images/EthicalFishLogo-green.png')
+    imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
   },
 ];
 
@@ -37,8 +36,7 @@ export default function ExchangePage() {
   };
 
   return (
-    <LinearGradient
-      colors={['#1a2a6c', '#b21f1f', '#fdbb2d']}
+    <View
       style={styles.container}
     >
       <View style={styles.header}>
@@ -57,9 +55,8 @@ export default function ExchangePage() {
             onPress={() => setSelectedFish(fish)}
           >
             <Image
-              source={{ uri: fish.imageUrl }}
+              source={require('@/assets/images/EthicalFishLogo-green.png')}
               style={styles.fishImage}
-              defaultSource={require('../assets/images/EthicalFishLogo-green.png')}
             />
             <View style={styles.fishInfo}>
               <Text style={styles.fishName}>{fish.name}</Text>
@@ -84,7 +81,7 @@ export default function ExchangePage() {
           </Text>
         </View>
       )}
-    </LinearGradient>
+    </View>
   );
 }
 

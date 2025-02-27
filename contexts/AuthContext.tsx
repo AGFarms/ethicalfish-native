@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Checking user login status...');
       checkUser();
     })();
+
+
   }, []);
 
   const magic = new Magic("pk_live_AB20FDF21CDEE189", {
@@ -57,7 +59,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     });
 
-    setIsLoading(false);
   };
 
   const signInWithOTP = async (email: string) => {
@@ -121,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       result.on('done', (e) => {
         console.log('done signOut', e);
+        setIsAuthenticated(false);
+        setUser(null);
       });
 
       result.on('error', (error) => {

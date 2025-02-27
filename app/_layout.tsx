@@ -12,7 +12,7 @@ function AuthWrapper() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/(auth)')
+      router.push('/(auth)/(tabs)/fish')
     }
   }, [isAuthenticated])
 
