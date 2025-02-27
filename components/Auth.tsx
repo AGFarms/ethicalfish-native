@@ -1,4 +1,4 @@
-import { View, TextInput, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ export default function LoginScreen() {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
-  const { signInWithOTP, verifyOTP, magic, user, signOut } = useAuth();
+  const { signInWithOTP, verifyOTP, magic, user, signOut, isLoading: authLoading } = useAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -49,52 +49,56 @@ export default function LoginScreen() {
     <SafeAreaProvider>
       <View style={styles.container}>
         <magic.Relayer />
-        {!showOtpInput ? (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#666"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              editable={!isLoading}
-            />
-            <TouchableOpacity 
-              style={[styles.button, (isLoading || !email) && styles.buttonDisabled]}
-              onPress={handleSendOTP}
-              disabled={isLoading || !email}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? "Sending..." : "Send OTP"}
-              </Text>
-            </TouchableOpacity>
-          </>
+        {authLoading ? (
+          <ActivityIndicator size="large" color="#007AFF" />
         ) : (
-          <>
-            <Text style={styles.text}>Enter the code sent to {email}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter OTP"
-              placeholderTextColor="#666"
-              value={otp}
-              onChangeText={setOtp}
-              keyboardType="number-pad"
-              maxLength={6}
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              style={[styles.button, (isLoading || !otp) && styles.buttonDisabled]}
-              onPress={handleVerifyOTP}
-              disabled={isLoading || !otp}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? "Verifying..." : "Verify OTP"}
-              </Text>
-            </TouchableOpacity>
-          </>
+          !showOtpInput ? (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                placeholderTextColor="#666"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                editable={!isLoading}
+              />
+              <TouchableOpacity 
+                style={[styles.button, (isLoading || !email) && styles.buttonDisabled]}
+                onPress={handleSendOTP}
+                disabled={isLoading || !email}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? "Sending..." : "Send OTP"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.text}>Enter the code sent to {email}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter OTP"
+                placeholderTextColor="#666"
+                value={otp}
+                onChangeText={setOtp}
+                keyboardType="number-pad"
+                maxLength={6}
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={[styles.button, (isLoading || !otp) && styles.buttonDisabled]}
+                onPress={handleVerifyOTP}
+                disabled={isLoading || !otp}
+              >
+                <Text style={styles.buttonText}>
+                  {isLoading ? "Verifying..." : "Verify OTP"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )
         )}
       </View>
     </SafeAreaProvider>
