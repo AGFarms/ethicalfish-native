@@ -1,6 +1,6 @@
 import { View, TextInput, Button, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {

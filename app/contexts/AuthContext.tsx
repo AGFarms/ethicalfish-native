@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loginHandle, setLoginHandle] = useState<any>(null);
 
   useEffect(() => {
+    setIsLoading(true);
     checkUser();
   }, []);
 
@@ -53,15 +54,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkUser = async () => {
     try {
-      const isLoggedIn = await magic.user.isLoggedIn();
-      setIsAuthenticated(isLoggedIn);
-      if (isLoggedIn) {
-        const userData = await magic.user.getMetadata();
-        setUser(userData);
-      }
+      console.log('Checking user login status...');
+
+      const data = magic.user.getInfo();
+
+      data.on('done', (user) => {
+        console.log('done data', user);
+        setIsAuthenticated(true);
+        setUser(user);
+        setIsLoading(false);
+      });
+
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+      setIsLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -75,6 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       setLoginHandle(handle);
+
+      handle.on('done', (e) => {
+        console.log('done handle', e);
+      });
       
       handle.on('email-otp-sent', () => {
         console.log('OTP sent successfully');
@@ -104,15 +115,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loginHandle.emit('verify-email-otp', otp);
       
       console.log('Waiting for OTP verification result...');
-      const result = await new Promise((resolve, reject) => {
-        loginHandle.on('done', (res) => {
-          console.log('OTP verification successful');
-          resolve(res);
-        });
-        loginHandle.on('invalid-email-otp', () => {
-          console.error('Invalid OTP provided');
-          reject(new Error('Invalid OTP'));
-        });
+
+      loginHandle.on('done', (e) => {
+        console.log('done loginHandle', e);
       });
 
       console.log('OTP verified successfully, creating child wallet...');
