@@ -6,6 +6,9 @@ import InfoModal from '../components/cardModals/InfoModal';
 import MapModal from '../components/cardModals/MapModal';
 import { VLCPlayer } from 'react-native-vlc-media-player';
 import { useGoPro } from '../contexts/GoProContext';
+import { useWS } from '../contexts/WSContext';
+
+
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -28,8 +31,6 @@ export default function FishPage() {
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [frames, setFrames] = useState<string[]>([]);
   const frameProcessorRef = useRef<NodeJS.Timeout | null>(null);
-  const [gifPath, setGifPath] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
   const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
   const [bumpFrame, setBumpFrame] = useState<string | null>(null);
@@ -41,12 +42,13 @@ export default function FishPage() {
   const [isGoProModalVisible, setIsGoProModalVisible] = useState(false);
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
-  
+
   const goProTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const infoTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const mapTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
   const { streamUrl, connectionStates } = useGoPro();
+  const { sendImage } = useWS();
 
   const createModalPanResponder = (translateY: Animated.Value, setVisible: (visible: boolean) => void) => 
     PanResponder.create({
@@ -173,6 +175,11 @@ export default function FishPage() {
       try {
         const photo = await cameraRef.current.takePhoto();
         setFrames(prev => [...prev, photo.path]);
+        
+        // Send image for processing
+        let response = await sendImage(photo.path);
+        console.log('Inference Results:', response);
+        
       } catch (error) {
         console.error('Error capturing frame:', error);
       }
@@ -206,6 +213,7 @@ export default function FishPage() {
         release: releaseStartFrame !== null ? frames.slice(releaseStartFrame) : null,
       };
       console.log('Submitting frames:', submission);
+
       closeModal();
       // Reset states
       setBumpFrame(null);
@@ -225,15 +233,27 @@ export default function FishPage() {
   );
 
   const handleSetBump = () => {
-    setBumpFrame(frames[currentFrameIndex]);
+    if (bumpFrame === frames[currentFrameIndex]) {
+      setBumpFrame(null);
+    } else {
+      setBumpFrame(frames[currentFrameIndex]);
+    }
   };
 
   const handleSetHero = () => {
-    setHeroFrame(frames[currentFrameIndex]);
+    if (heroFrame === frames[currentFrameIndex]) {
+      setHeroFrame(null);
+    } else {
+      setHeroFrame(frames[currentFrameIndex]);
+    }
   };
 
   const handleSetReleaseStart = () => {
-    setReleaseStartFrame(currentFrameIndex);
+    if (releaseStartFrame === currentFrameIndex) {
+      setReleaseStartFrame(null);
+    } else {
+      setReleaseStartFrame(currentFrameIndex);
+    }
   };
 
   const openGoProModal = () => {
@@ -300,31 +320,33 @@ export default function FishPage() {
         </View>
       </TouchableWithoutFeedback>
 
-      <TouchableOpacity 
-        style={styles.goProCard} 
-        onPress={openGoProModal}
-      >
-        {streamUrl && connectionStates.wifi === 'connected' ? (
-          <View style={styles.goProPreview}>
-            <VLCPlayer
-              style={styles.previewStream}
-              source={{ 
-                uri: streamUrl,
-                initOptions: [
-                  '--network-caching=150',
-                  '--live-caching=150',
-                  '--clock-jitter=0',
-                  '--clock-synchro=0',
-                ]
-              }}
-              autoplay={true}
-            />
+      {!isModalVisible && (
+        <TouchableOpacity 
+          style={styles.goProCard} 
+          onPress={openGoProModal}
+        >
+          {streamUrl && connectionStates.wifi === 'connected' ? (
+            <View style={styles.goProPreview}>
+              <VLCPlayer
+                style={styles.previewStream}
+                source={{ 
+                  uri: streamUrl,
+                  initOptions: [
+                    '--network-caching=150',
+                    '--live-caching=150',
+                    '--clock-jitter=0',
+                    '--clock-synchro=0',
+                  ]
+                }}
+                autoplay={true}
+              />
+              <Text style={styles.goProText}>Go Pro</Text>
+            </View>
+          ) : (
             <Text style={styles.goProText}>Go Pro</Text>
-          </View>
-        ) : (
-          <Text style={styles.goProText}>Go Pro</Text>
-        )}
-      </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.leftCard} onPress={openInfoModal}>
         <Text style={styles.leftCardText}>Info</Text>
@@ -383,13 +405,10 @@ export default function FishPage() {
         </TouchableOpacity>
       </View>
 
-      {/* {isModalVisible && (
+      {isModalVisible && (
         <Animated.View 
           style={[
-            styles.modal,
-            { transform: [{ translateY }] }
-          ]}
-          {...panResponder.panHandlers}
+            styles.modal,]}
         >
           <View style={styles.modalHandle} />
           <View style={styles.modalContent}>
@@ -467,7 +486,7 @@ export default function FishPage() {
             </View>
           </View>
         </Animated.View>
-      )} */}
+      )}
 
       <GoProModal
         isVisible={isGoProModalVisible}
@@ -530,6 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+
   },
   imageWrapper: {
     position: 'relative',
@@ -661,6 +681,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
     overflow: 'hidden',
   },
+
   goProPreview: {
     position: 'absolute',
     top: 0,
@@ -670,9 +691,106 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  previewStream: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+
   goProText: {
-    color: 'white',
-    fontSize: 16,
+    color: '#000',
     fontWeight: 'bold',
+    fontSize: 18,
+    textAlign: 'center',
+    zIndex: 1,
+    textShadowColor: 'rgba(255, 255, 255, 0.5)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+  },
+
+  leftCard: {
+    position: 'absolute',
+    top: 40,
+    right: 240,
+    width: 140,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    borderWidth: 1,
+    borderColor: '#FFF',
+  },
+
+  leftCardText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+
+  mapCard: {
+    position: 'absolute',
+    top: 130,
+    right: 240,
+    width: 140,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    borderWidth: 1,
+    borderColor: '#FFF',
+  },
+
+  metadataContainer: {
+    position: 'absolute',
+    top: 340,
+    right: 20,
+    flexDirection: 'column',
+    gap: 10,
+  },
+
+  metadataCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+
+  metadataActive: {
+    backgroundColor: 'rgba(255, 215, 0, 0.9)',
+  },
+
+  metadataText: {
+    fontSize: 24,
   },
 });

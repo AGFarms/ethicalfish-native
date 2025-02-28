@@ -2,10 +2,12 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { GoProProvider } from '@/contexts/GoProContext';
+import { WSProvider } from '@/contexts/WSContext';
 
 export default function TabLayout() {
   return (
     <GoProProvider>
+    <WSProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Tabs screenOptions={{
         headerShown: false,
@@ -49,6 +51,7 @@ export default function TabLayout() {
         />
       </Tabs>
       </GestureHandlerRootView>
+      </WSProvider>
     </GoProProvider>
   );
 }
