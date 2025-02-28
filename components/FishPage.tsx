@@ -1,8 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Button, StyleSheet, TouchableWithoutFeedback, Animated, PanResponder, Dimensions, Text, Image, ScrollView, Keyboard } from 'react-native';
+import { View, Button, StyleSheet, TouchableWithoutFeedback, Animated, PanResponder, Dimensions, Text, Image, ScrollView, Keyboard, TouchableOpacity } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
-import Carousel, { CarouselProps } from 'react-native-snap-carousel';
-import { PinchGestureHandler} from 'react-native-gesture-handler';
+import GoProModal from '../components/cardModals/GoProModal';
+import InfoModal from '../components/cardModals/InfoModal';
+import MapModal from '../components/cardModals/MapModal';
+import { VLCPlayer } from 'react-native-vlc-media-player';
+import { useGoPro } from '../contexts/GoProContext';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -32,8 +35,20 @@ export default function FishPage() {
   const [bumpFrame, setBumpFrame] = useState<string | null>(null);
   const [heroFrame, setHeroFrame] = useState<string | null>(null);
   const [releaseStartFrame, setReleaseStartFrame] = useState<number | null>(null);
+  const [showWeather, setShowWeather] = useState(false);
+  const [showTime, setShowTime] = useState(false);
+  const [showLocation, setShowLocation] = useState(false);
+  const [isGoProModalVisible, setIsGoProModalVisible] = useState(false);
+  const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
+  const [isMapModalVisible, setIsMapModalVisible] = useState(false);
   
-  const panResponder = useRef(
+  const goProTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const infoTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const mapTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  const { streamUrl, connectionStates } = useGoPro();
+
+  const createModalPanResponder = (translateY: Animated.Value, setVisible: (visible: boolean) => void) => 
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
@@ -43,7 +58,11 @@ export default function FishPage() {
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dy > SCREEN_HEIGHT * 0.2) {
-          closeModal();
+          Animated.timing(translateY, {
+            toValue: SCREEN_HEIGHT,
+            duration: 300,
+            useNativeDriver: true,
+          }).start(() => setVisible(false));
         } else {
           Animated.spring(translateY, {
             toValue: 0,
@@ -51,8 +70,11 @@ export default function FishPage() {
           }).start();
         }
       },
-    })
-  ).current;
+    });
+
+  const goProPanResponder = useRef(createModalPanResponder(goProTranslateY, setIsGoProModalVisible)).current;
+  const infoPanResponder = useRef(createModalPanResponder(infoTranslateY, setIsInfoModalVisible)).current;
+  const mapPanResponder = useRef(createModalPanResponder(mapTranslateY, setIsMapModalVisible)).current;
 
   const device = isFrontCamera ? frontDevice : backDevice;
   
@@ -214,6 +236,54 @@ export default function FishPage() {
     setReleaseStartFrame(currentFrameIndex);
   };
 
+  const openGoProModal = () => {
+    setIsGoProModalVisible(true);
+    Animated.spring(goProTranslateY, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const openInfoModal = () => {
+    setIsInfoModalVisible(true);
+    Animated.spring(infoTranslateY, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const openMapModal = () => {
+    setIsMapModalVisible(true);
+    Animated.spring(mapTranslateY, {
+      toValue: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeGoProModal = () => {
+    Animated.timing(goProTranslateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setIsGoProModalVisible(false));
+  };
+
+  const closeInfoModal = () => {
+    Animated.timing(infoTranslateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setIsInfoModalVisible(false));
+  };
+
+  const closeMapModal = () => {
+    Animated.timing(mapTranslateY, {
+      toValue: SCREEN_HEIGHT,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => setIsMapModalVisible(false));
+  };
+
   return (
     <View style={styles.container}>
       <TouchableWithoutFeedback onPress={handleDoubleTap}>
@@ -229,14 +299,91 @@ export default function FishPage() {
           />
         </View>
       </TouchableWithoutFeedback>
-      <View style={[styles.buttonContainer, { gap: 10 }]}>
-        <Button 
-          title={isRecording ? "Finish Submission Scan" : "Start Submission Scan"} 
-          onPress={isRecording ? stopRecording : startRecording}
-        />
+
+      <TouchableOpacity 
+        style={styles.goProCard} 
+        onPress={openGoProModal}
+      >
+        {streamUrl && connectionStates.wifi === 'connected' ? (
+          <View style={styles.goProPreview}>
+            <VLCPlayer
+              style={styles.previewStream}
+              source={{ 
+                uri: streamUrl,
+                initOptions: [
+                  '--network-caching=150',
+                  '--live-caching=150',
+                  '--clock-jitter=0',
+                  '--clock-synchro=0',
+                ]
+              }}
+              autoplay={true}
+            />
+            <Text style={styles.goProText}>Go Pro</Text>
+          </View>
+        ) : (
+          <Text style={styles.goProText}>Go Pro</Text>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.leftCard} onPress={openInfoModal}>
+        <Text style={styles.leftCardText}>Info</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.mapCard} onPress={openMapModal}>
+        <Text style={styles.leftCardText}>Map</Text>
+      </TouchableOpacity>
+
+      <View style={styles.metadataContainer}>
+        <TouchableOpacity 
+          style={[styles.metadataCircle, showWeather && styles.metadataActive]} 
+          onPress={() => setShowWeather(!showWeather)}
+        >
+          <Text style={styles.metadataText}>🌤️</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.metadataCircle, showTime && styles.metadataActive]} 
+          onPress={() => setShowTime(!showTime)}
+        >
+          <Text style={styles.metadataText}>⏰</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.metadataCircle, showLocation && styles.metadataActive]} 
+          onPress={() => setShowLocation(!showLocation)}
+        >
+          <Text style={styles.metadataText}>📍</Text>
+        </TouchableOpacity>
       </View>
 
-      {isModalVisible && (
+      <View style={[styles.buttonContainer, { gap: 10 }]}>
+        <TouchableOpacity
+          style={{
+            backgroundColor: isRecording ? '#FF4444' : '#4A90E2',
+            paddingVertical: 15,
+            paddingHorizontal: 30,
+            borderRadius: 25,
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 3.84,
+          }}
+          onPress={isRecording ? stopRecording : startRecording}
+        >
+          <Text style={{
+            color: '#FFFFFF',
+            fontSize: 18,
+            fontWeight: 'bold',
+            textAlign: 'center',
+          }}>
+            {isRecording ? 'STOP FISHSCAN' : 'START FISHSCAN'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* {isModalVisible && (
         <Animated.View 
           style={[
             styles.modal,
@@ -320,7 +467,26 @@ export default function FishPage() {
             </View>
           </View>
         </Animated.View>
-      )}
+      )} */}
+
+      <GoProModal
+        isVisible={isGoProModalVisible}
+        onClose={closeGoProModal}
+        translateY={goProTranslateY}
+        panResponder={goProPanResponder}
+      />
+      <InfoModal
+        isVisible={isInfoModalVisible}
+        onClose={closeInfoModal}
+        translateY={infoTranslateY}
+        panResponder={infoPanResponder}
+      />
+      <MapModal
+        isVisible={isMapModalVisible}
+        onClose={closeMapModal}
+        translateY={mapTranslateY}
+        panResponder={mapPanResponder}
+      />
     </View>
   );
 };
@@ -473,5 +639,40 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 10,
     gap: 10,
+  },
+  goProCard: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    width: 200,
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 215, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  goProPreview: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goProText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
