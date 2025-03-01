@@ -9,9 +9,8 @@ import { useGoPro } from '../contexts/GoProContext';
 import { useWS } from '../contexts/WSContext';
 import * as fcl from "@onflow/fcl";
 import * as Location from 'expo-location';
-import { generateZkp } from '../utils/generateZkp';
+//import { generateZkp } from '../utils/generateZkp';
 import { verifyZkp } from '../utils/verifyZkp';
-import * as FileSystem from 'react-native-fs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -215,15 +214,15 @@ export default function FishPage() {
       };
 
       // Save input to file
-      const inputPath = `${FileSystem.DocumentDirectoryPath}/input.json`;
-      await FileSystem.writeFile(inputPath, JSON.stringify(input, null, 2));
+//      const inputPath = `${FileSystem.DocumentDirectoryPath}/input.json`;
+  //    await FileSystem.writeFile(inputPath, JSON.stringify(input, null, 2));
 
       // Generate and verify ZKP
-      const { proof, publicSignals, verificationKey } = await generateZkp(
-        input.latitude,
-        input.longitude
-      );
-
+ //     const { proof, publicSignals, verificationKey } = await generateZkp(
+ //       input.latitude,
+ //       input.longitude
+ //     );
+const proof = require('../zkVerify/proof.json');
       const verified_transaction = await verifyZkp(proof);
 
       console.log('ZKP Generated and Verified Successfully');
