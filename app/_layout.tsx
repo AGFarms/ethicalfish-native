@@ -5,6 +5,8 @@ import { View, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import 'react-native-get-random-values';
+
 
 function AuthWrapper() {
   const { isAuthenticated, isLoading } = useAuth()

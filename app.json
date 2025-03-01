@@ -75,6 +75,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
+      ],
+      [
+        "expo-file-system",
+        {
+          "filePermission": "Allows reading and writing files to the app's directory."
+        }
       ]
     ],
     "experiments": {

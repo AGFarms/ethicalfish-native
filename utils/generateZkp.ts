@@ -1,11 +1,11 @@
 import * as snarkjs from 'snarkjs';
-import fs from 'fs';
-import path from 'path';
+import * as FileSystem from 'expo-file-system';
 
-// Adjust paths for your React Native project setup
-const wasmPath = path.resolve(__dirname, '../assets/geofence.wasm');
-const zkeyPath = path.resolve(__dirname, '../assets/geofence_0001.zkey');
-const verificationKeyPath = path.resolve(__dirname, '../assets/geofence_verification_key.json');
+// Use FileSystem.documentDirectory or bundledAssets to reference files
+const assetsDirectory = FileSystem.documentDirectory + 'assets/';
+const wasmPath = assetsDirectory + 'geofence.wasm';
+const zkeyPath = assetsDirectory + 'geofence_0001.zkey';
+const verificationKeyPath = assetsDirectory + 'geofence_verification_key.json';
 
 export const generateZkp = async (latitude: number, longitude: number) => {
   try {
@@ -25,7 +25,7 @@ export const generateZkp = async (latitude: number, longitude: number) => {
     console.log(JSON.stringify(proof, null, 1));
 
     // Load verification key
-    const verificationKey = JSON.parse(await fs.promises.readFile(verificationKeyPath, 'utf8'));
+    const verificationKey = JSON.parse(await FileSystem.readAsStringAsync(verificationKeyPath));
 
     // Verify the proof
     const res = await snarkjs.groth16.verify(verificationKey, publicSignals, proof);
