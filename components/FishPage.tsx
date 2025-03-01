@@ -10,6 +10,9 @@ import { useWS } from '../contexts/WSContext';
 import * as fcl from "@onflow/fcl";
 
 fcl.config().put("accessNode.api", "https://rest-mainnet.onflow.org");
+import * as Location from 'expo-location';
+//import { generateZkp } from '../utils/generateZkp';
+import { verifyZkp } from '../utils/verifyZkp';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -51,7 +54,7 @@ export default function FishPage() {
   const { streamUrl, connectionStates } = useGoPro();
   const { sendImage } = useWS();
 
-  const createModalPanResponder = (translateY: Animated.Value, setVisible: (visible: boolean) => void) => 
+  const createModalPanResponder = (translateY: Animated.Value, setVisible: (visible: boolean) => void) =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, gestureState) => {
@@ -80,7 +83,7 @@ export default function FishPage() {
   const mapPanResponder = useRef(createModalPanResponder(mapTranslateY, setIsMapModalVisible)).current;
 
   const device = isFrontCamera ? frontDevice : backDevice;
-  
+
   useEffect(() => {
     if (!hasPermission) {
       requestPermission();
@@ -97,11 +100,11 @@ export default function FishPage() {
 
   useEffect(() => {
     let frameInterval: NodeJS.Timeout;
-    
+
     if (isModalVisible && frames.length > 0 && isHolding) {
       frameInterval = setInterval(() => {
         setCurrentFrameIndex((prev) => (prev + 1) % frames.length);
-      }, 1000/7); // 7 FPS to match capture rate
+      }, 1000 / 7); // 7 FPS to match capture rate
     }
 
     return () => {
@@ -140,7 +143,7 @@ export default function FishPage() {
   const handleDoubleTap = () => {
     const now = Date.now();
     const DOUBLE_TAP_DELAY = 300;
-    
+
     if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
       setIsFrontCamera(!isFrontCamera);
       lastTapRef.current = 0;
@@ -176,349 +179,395 @@ export default function FishPage() {
       try {
         const photo = await cameraRef.current.takePhoto();
         setFrames(prev => [...prev, photo.path]);
-        
+
         // Send image for processing
         let response = await sendImage(photo.path);
         console.log('Inference Results:', response);
-        
+
       } catch (error) {
         console.error('Error capturing frame:', error);
       }
     }
   };
 
-  const startRecording = async () => {
-    setFrames([]);
-    setIsRecording(true);
-    frameProcessorRef.current = setInterval(captureFrame, 1000/7); // 7 FPS
+  // const generateAndVerifyZkp = async () => {
+  //   try {
+  //     // Request location permission
+  //     const { status } = await Location.requestForegroundPermissionsAsync();
+  //     if (status !== 'granted') {
+  //       Alert.alert('Permission Denied', 'Location permission is required.');
+  //       return;
+  //     }
+  //
+  //     // Get current location
+  //     const location = await Location.getCurrentPositionAsync({});
+  //     setCurrentLocation({
+  //       latitude: location.coords.latitude,
+  //       longitude: location.coords.longitude
+  //     });
+  //
+  //     // Convert coordinates to the format expected by the circuit (multiply by 1e6 to handle decimals)
+  //     const input = {
+  //       latitude: Math.round(location.coords.latitude * 1e6),
+  //       longitude: Math.round(location.coords.longitude * 1e6),
+  //       geofenceCenterLat: Math.round(location.coords.latitude * 1e6), // Using same location as center for this example
+  //       geofenceCenterLon: Math.round(location.coords.longitude * 1e6)
+  //     };
+  //
+  // Save input to file
+  //      const inputPath = `${FileSystem.DocumentDirectoryPath}/input.json`;
+  //    await FileSystem.writeFile(inputPath, JSON.stringify(input, null, 2));
+
+  // Generate and verify ZKP
+  //     const { proof, publicSignals, verificationKey } = await generateZkp(
+  //       input.latitude,
+  //       input.longitude
+  //     );
+  const proof = require('../zkVerify/proof.json');
+  const verified_transaction = await verifyZkp(proof);
+
+  console.log('ZKP Generated and Verified Successfully');
+  console.log('Verified Transaction:', verified_transaction);
+  return true;
+} catch (error) {
+  console.error('Error in ZKP process:', error);
+  Alert.alert('Error', 'Failed to verify location.');
+  return false;
+}
   };
 
-  const stopRecording = async () => {
-    if (frameProcessorRef.current) {
-      clearInterval(frameProcessorRef.current);
-      frameProcessorRef.current = null;
-    }
-    setIsRecording(false);
+const startRecording = async () => {
+  setFrames([]);
+  setIsRecording(true);
+  frameProcessorRef.current = setInterval(captureFrame, 1000 / 7); // 7 FPS
+};
 
-    if (frames.length > 0) {
-      setVideoPath(null);
-      openModal();
-    }
-  };
+const stopRecording = async () => {
+  if (frameProcessorRef.current) {
+    clearInterval(frameProcessorRef.current);
+    frameProcessorRef.current = null;
+  }
+  setIsRecording(false);
 
-  const handleSubmit = async () => {
-    if (frames.length > 0 && bumpFrame && heroFrame && releaseStartFrame !== null) {
-      try {
-        // Get the release frames starting from releaseStartFrame
-        const releaseFrames = frames.slice(releaseStartFrame);
+  if (frames.length > 0) {
+    setVideoPath(null);
+    openModal();
+  }
+};
 
-        // Close modal and reset states
-        closeModal();
-        setBumpFrame(null);
-        setHeroFrame(null);
-        setReleaseStartFrame(null);
+const handleSubmit = async () => {
+  if (frames.length > 0 && bumpFrame && heroFrame && releaseStartFrame !== null) {
+    try {
+      // Get the release frames starting from releaseStartFrame
+      const releaseFrames = frames.slice(releaseStartFrame);
 
-        // Show success message
-        Alert.alert('Success', 'NFT minted successfully!');
-
-      } catch (error) {
-        console.error('Error minting NFT:', error);
-        Alert.alert('Error', 'Failed to mint NFT. Please try again.');
-      }
-    } else {
-      Alert.alert(
-        'Incomplete Selection',
-        'Please select a bump frame, hero frame, and release start frame before submitting.'
-      );
-    }
-  };
-  
-  const renderCarouselItem = ({ item: framePath, index }: CarouselRenderItem) => (
-    <View style={styles.carouselItem}>
-      <Image
-        source={{ uri: `file://${framePath}` }}
-        style={styles.carouselImage}
-        resizeMode="contain"
-      />
-    </View>
-  );
-
-  const handleSetBump = () => {
-    if (bumpFrame === frames[currentFrameIndex]) {
+      // Close modal and reset states
+      closeModal();
       setBumpFrame(null);
-    } else {
-      setBumpFrame(frames[currentFrameIndex]);
-    }
-  };
-
-  const handleSetHero = () => {
-    if (heroFrame === frames[currentFrameIndex]) {
       setHeroFrame(null);
-    } else {
-      setHeroFrame(frames[currentFrameIndex]);
-    }
-  };
-
-  const handleSetReleaseStart = () => {
-    if (releaseStartFrame === currentFrameIndex) {
       setReleaseStartFrame(null);
-    } else {
-      setReleaseStartFrame(currentFrameIndex);
+
+      // Show success message
+      Alert.alert('Success', 'NFT minted successfully!');
+
+    } catch (error) {
+      console.error('Error minting NFT:', error);
+      Alert.alert('Error', 'Failed to mint NFT. Please try again.');
     }
-  };
+  } else {
+    Alert.alert(
+      'Incomplete Selection',
+      'Please select a bump frame, hero frame, and release start frame before submitting.'
+    );
+  }
+};
 
-  const openGoProModal = () => {
-    setIsGoProModalVisible(true);
-    Animated.spring(goProTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-    }).start();
-  };
+const renderCarouselItem = ({ item: framePath, index }: CarouselRenderItem) => (
+  <View style={styles.carouselItem}>
+    <Image
+      source={{ uri: `file://${framePath}` }}
+      style={styles.carouselImage}
+      resizeMode="contain"
+    />
+  </View>
+);
 
-  const openInfoModal = () => {
-    setIsInfoModalVisible(true);
-    Animated.spring(infoTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-    }).start();
-  };
+const handleSetBump = () => {
+  if (bumpFrame === frames[currentFrameIndex]) {
+    setBumpFrame(null);
+  } else {
+    setBumpFrame(frames[currentFrameIndex]);
+  }
+};
 
-  const openMapModal = () => {
-    setIsMapModalVisible(true);
-    Animated.spring(mapTranslateY, {
-      toValue: 0,
-      useNativeDriver: true,
-    }).start();
-  };
+const handleSetHero = () => {
+  if (heroFrame === frames[currentFrameIndex]) {
+    setHeroFrame(null);
+  } else {
+    setHeroFrame(frames[currentFrameIndex]);
+  }
+};
 
-  const closeGoProModal = () => {
-    Animated.timing(goProTranslateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => setIsGoProModalVisible(false));
-  };
+const handleSetReleaseStart = () => {
+  if (releaseStartFrame === currentFrameIndex) {
+    setReleaseStartFrame(null);
+  } else {
+    setReleaseStartFrame(currentFrameIndex);
+  }
+};
 
-  const closeInfoModal = () => {
-    Animated.timing(infoTranslateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => setIsInfoModalVisible(false));
-  };
+const openGoProModal = () => {
+  setIsGoProModalVisible(true);
+  Animated.spring(goProTranslateY, {
+    toValue: 0,
+    useNativeDriver: true,
+  }).start();
+};
 
-  const closeMapModal = () => {
-    Animated.timing(mapTranslateY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => setIsMapModalVisible(false));
-  };
+const openInfoModal = () => {
+  setIsInfoModalVisible(true);
+  Animated.spring(infoTranslateY, {
+    toValue: 0,
+    useNativeDriver: true,
+  }).start();
+};
 
-  return (
-    <View style={styles.container}>
-      <TouchableWithoutFeedback onPress={handleDoubleTap}>
-        <View style={StyleSheet.absoluteFill}>
-          <Camera
-            ref={cameraRef}
-            style={StyleSheet.absoluteFill}
-            device={device}
-            isActive={true}
-            video={true}
-            photo={true}
-            audio={true}
-          />
-        </View>
-      </TouchableWithoutFeedback>
+const openMapModal = () => {
+  setIsMapModalVisible(true);
+  Animated.spring(mapTranslateY, {
+    toValue: 0,
+    useNativeDriver: true,
+  }).start();
+};
 
-      {!isModalVisible && (
-        <TouchableOpacity 
-          style={styles.goProCard} 
-          onPress={openGoProModal}
-        >
-          {streamUrl && connectionStates.wifi === 'connected' ? (
-            <View style={styles.goProPreview}>
-              <VLCPlayer
-                style={styles.previewStream}
-                source={{ 
-                  uri: streamUrl,
-                  initOptions: [
-                    '--network-caching=150',
-                    '--live-caching=150',
-                    '--clock-jitter=0',
-                    '--clock-synchro=0',
-                  ]
-                }}
-                autoplay={true}
-              />
-              <Text style={styles.goProText}>Go Pro</Text>
-            </View>
-          ) : (
+const closeGoProModal = () => {
+  Animated.timing(goProTranslateY, {
+    toValue: SCREEN_HEIGHT,
+    duration: 300,
+    useNativeDriver: true,
+  }).start(() => setIsGoProModalVisible(false));
+};
+
+const closeInfoModal = () => {
+  Animated.timing(infoTranslateY, {
+    toValue: SCREEN_HEIGHT,
+    duration: 300,
+    useNativeDriver: true,
+  }).start(() => setIsInfoModalVisible(false));
+};
+
+const closeMapModal = () => {
+  Animated.timing(mapTranslateY, {
+    toValue: SCREEN_HEIGHT,
+    duration: 300,
+    useNativeDriver: true,
+  }).start(() => setIsMapModalVisible(false));
+};
+
+return (
+  <View style={styles.container}>
+    <TouchableWithoutFeedback onPress={handleDoubleTap}>
+      <View style={StyleSheet.absoluteFill}>
+        <Camera
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          device={device}
+          isActive={true}
+          video={true}
+          photo={true}
+          audio={true}
+        />
+      </View>
+    </TouchableWithoutFeedback>
+
+    {!isModalVisible && (
+      <TouchableOpacity
+        style={styles.goProCard}
+        onPress={openGoProModal}
+      >
+        {streamUrl && connectionStates.wifi === 'connected' ? (
+          <View style={styles.goProPreview}>
+            <VLCPlayer
+              style={styles.previewStream}
+              source={{
+                uri: streamUrl,
+                initOptions: [
+                  '--network-caching=150',
+                  '--live-caching=150',
+                  '--clock-jitter=0',
+                  '--clock-synchro=0',
+                ]
+              }}
+              autoplay={true}
+            />
             <Text style={styles.goProText}>Go Pro</Text>
-          )}
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity style={styles.leftCard} onPress={openInfoModal}>
-        <Text style={styles.leftCardText}>Info</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.mapCard} onPress={openMapModal}>
-        <Text style={styles.leftCardText}>Map</Text>
-      </TouchableOpacity>
-
-      <View style={styles.metadataContainer}>
-        <TouchableOpacity 
-          style={[styles.metadataCircle, showWeather && styles.metadataActive]} 
-          onPress={() => setShowWeather(!showWeather)}
-        >
-          <Text style={styles.metadataText}>🌤️</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.metadataCircle, showTime && styles.metadataActive]} 
-          onPress={() => setShowTime(!showTime)}
-        >
-          <Text style={styles.metadataText}>⏰</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.metadataCircle, showLocation && styles.metadataActive]} 
-          onPress={() => setShowLocation(!showLocation)}
-        >
-          <Text style={styles.metadataText}>📍</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.buttonContainer, { gap: 10 }]}>
-        <TouchableOpacity
-          style={{
-            backgroundColor: isRecording ? '#FF4444' : '#4A90E2',
-            paddingVertical: 15,
-            paddingHorizontal: 30,
-            borderRadius: 25,
-            elevation: 5,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.25,
-            shadowRadius: 3.84,
-          }}
-          onPress={isRecording ? stopRecording : startRecording}
-        >
-          <Text style={{
-            color: '#FFFFFF',
-            fontSize: 18,
-            fontWeight: 'bold',
-            textAlign: 'center',
-          }}>
-            {isRecording ? 'STOP FISHSCAN' : 'START FISHSCAN'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {isModalVisible && (
-        <Animated.View 
-          style={[
-            styles.modal,]}
-        >
-          <View style={styles.modalHandle} />
-          <View style={styles.modalContent}>
-              <Animated.View style={styles.imageContainer}>
-                <TouchableWithoutFeedback
-                  onPressIn={() => setIsHolding(true)}
-                  onPressOut={() => setIsHolding(false)}
-                >
-                  <Animated.View>
-                    <Animated.View style={[
-                      styles.imageWrapper,
-                      bumpFrame === frames[currentFrameIndex] && styles.bumpBorder,
-                      heroFrame === frames[currentFrameIndex] && styles.heroBorder,
-                      releaseStartFrame !== null && currentFrameIndex >= releaseStartFrame && styles.releaseBorder,
-                    ]}>
-                      <Animated.Image
-                        source={{ uri: `file://${frames[currentFrameIndex]}` }}
-                        style={[
-                          styles.previewImage
-                        ]}
-                        resizeMode="contain"
-                      />
-                      {bumpFrame === frames[currentFrameIndex] && (
-                        <View style={[styles.frameLabel, styles.bumpLabel]}>
-                          <Text style={styles.labelText}>BUMP</Text>
-                        </View>
-                      )}
-                      {heroFrame === frames[currentFrameIndex] && (
-                        <View style={[styles.frameLabel, styles.heroLabel]}>
-                          <Text style={styles.labelText}>HERO</Text>
-                        </View>
-                      )}
-                      {releaseStartFrame !== null && currentFrameIndex >= releaseStartFrame && (
-                        <View style={[styles.frameLabel, styles.releaseLabel]}>
-                          <Text style={styles.labelText}>RELEASE</Text>
-                        </View>
-                      )}
-                      <Text style={styles.frameCounter}>
-                        Frame: {currentFrameIndex + 1} / {frames.length}
-                      </Text>
-                    </Animated.View>
-                  </Animated.View>
-                </TouchableWithoutFeedback>
-              </Animated.View>
-            <View style={styles.frameControls}>
-              <Button 
-                title="◀" 
-                onPress={() => setCurrentFrameIndex(prev => Math.max(0, prev - 1))}
-              />
-              <Button 
-                title="▶" 
-                onPress={() => setCurrentFrameIndex(prev => Math.min(frames.length - 1, prev + 1))}
-              />
-            </View>
-            <View style={styles.frameActions}>
-              <Button
-                title={`Set Bump ${bumpFrame ? '✓' : ''}`}
-                onPress={handleSetBump}
-                color={bumpFrame ? 'green' : undefined}
-              />
-              <Button
-                title={`Set Hero ${heroFrame ? '✓' : ''}`}
-                onPress={handleSetHero}
-                color={heroFrame ? 'green' : undefined}
-              />
-              <Button
-                title={`Set Release Start ${releaseStartFrame !== null ? '✓' : ''}`}
-                onPress={handleSetReleaseStart}
-                color={releaseStartFrame !== null ? 'green' : undefined}
-              />
-            </View>
-            <View style={styles.buttonGroup}>
-              <Button title="Submit" onPress={handleSubmit} />
-              <Button title="Cancel" onPress={closeModal} color="gray" />
-            </View>
           </View>
-        </Animated.View>
-      )}
+        ) : (
+          <Text style={styles.goProText}>Go Pro</Text>
+        )}
+      </TouchableOpacity>
+    )}
 
-      <GoProModal
-        isVisible={isGoProModalVisible}
-        onClose={closeGoProModal}
-        translateY={goProTranslateY}
-        panResponder={goProPanResponder}
-      />
-      <InfoModal
-        isVisible={isInfoModalVisible}
-        onClose={closeInfoModal}
-        translateY={infoTranslateY}
-        panResponder={infoPanResponder}
-      />
-      <MapModal
-        isVisible={isMapModalVisible}
-        onClose={closeMapModal}
-        translateY={mapTranslateY}
-        panResponder={mapPanResponder}
-      />
+    <TouchableOpacity style={styles.leftCard} onPress={openInfoModal}>
+      <Text style={styles.leftCardText}>Info</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.mapCard} onPress={openMapModal}>
+      <Text style={styles.leftCardText}>Map</Text>
+    </TouchableOpacity>
+
+    <View style={styles.metadataContainer}>
+      <TouchableOpacity
+        style={[styles.metadataCircle, showWeather && styles.metadataActive]}
+        onPress={() => setShowWeather(!showWeather)}
+      >
+        <Text style={styles.metadataText}>🌤️</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.metadataCircle, showTime && styles.metadataActive]}
+        onPress={() => setShowTime(!showTime)}
+      >
+        <Text style={styles.metadataText}>⏰</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.metadataCircle, showLocation && styles.metadataActive]}
+        onPress={() => setShowLocation(!showLocation)}
+      >
+        <Text style={styles.metadataText}>📍</Text>
+      </TouchableOpacity>
     </View>
-  );
+
+    <View style={[styles.buttonContainer, { gap: 10 }]}>
+      <TouchableOpacity
+        style={{
+          backgroundColor: isRecording ? '#FF4444' : '#4A90E2',
+          paddingVertical: 15,
+          paddingHorizontal: 30,
+          borderRadius: 25,
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+        }}
+        onPress={isRecording ? stopRecording : startRecording}
+      >
+        <Text style={{
+          color: '#FFFFFF',
+          fontSize: 18,
+          fontWeight: 'bold',
+          textAlign: 'center',
+        }}>
+          {isRecording ? 'STOP FISHSCAN' : 'START FISHSCAN'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+
+    {isModalVisible && (
+      <Animated.View
+        style={[
+          styles.modal,]}
+      >
+        <View style={styles.modalHandle} />
+        <View style={styles.modalContent}>
+          <Animated.View style={styles.imageContainer}>
+            <TouchableWithoutFeedback
+              onPressIn={() => setIsHolding(true)}
+              onPressOut={() => setIsHolding(false)}
+            >
+              <Animated.View>
+                <Animated.View style={[
+                  styles.imageWrapper,
+                  bumpFrame === frames[currentFrameIndex] && styles.bumpBorder,
+                  heroFrame === frames[currentFrameIndex] && styles.heroBorder,
+                  releaseStartFrame !== null && currentFrameIndex >= releaseStartFrame && styles.releaseBorder,
+                ]}>
+                  <Animated.Image
+                    source={{ uri: `file://${frames[currentFrameIndex]}` }}
+                    style={[
+                      styles.previewImage
+                    ]}
+                    resizeMode="contain"
+                  />
+                  {bumpFrame === frames[currentFrameIndex] && (
+                    <View style={[styles.frameLabel, styles.bumpLabel]}>
+                      <Text style={styles.labelText}>BUMP</Text>
+                    </View>
+                  )}
+                  {heroFrame === frames[currentFrameIndex] && (
+                    <View style={[styles.frameLabel, styles.heroLabel]}>
+                      <Text style={styles.labelText}>HERO</Text>
+                    </View>
+                  )}
+                  {releaseStartFrame !== null && currentFrameIndex >= releaseStartFrame && (
+                    <View style={[styles.frameLabel, styles.releaseLabel]}>
+                      <Text style={styles.labelText}>RELEASE</Text>
+                    </View>
+                  )}
+                  <Text style={styles.frameCounter}>
+                    Frame: {currentFrameIndex + 1} / {frames.length}
+                  </Text>
+                </Animated.View>
+              </Animated.View>
+            </TouchableWithoutFeedback>
+          </Animated.View>
+          <View style={styles.frameControls}>
+            <Button
+              title="◀"
+              onPress={() => setCurrentFrameIndex(prev => Math.max(0, prev - 1))}
+            />
+            <Button
+              title="▶"
+              onPress={() => setCurrentFrameIndex(prev => Math.min(frames.length - 1, prev + 1))}
+            />
+          </View>
+          <View style={styles.frameActions}>
+            <Button
+              title={`Set Bump ${bumpFrame ? '✓' : ''}`}
+              onPress={handleSetBump}
+              color={bumpFrame ? 'green' : undefined}
+            />
+            <Button
+              title={`Set Hero ${heroFrame ? '✓' : ''}`}
+              onPress={handleSetHero}
+              color={heroFrame ? 'green' : undefined}
+            />
+            <Button
+              title={`Set Release Start ${releaseStartFrame !== null ? '✓' : ''}`}
+              onPress={handleSetReleaseStart}
+              color={releaseStartFrame !== null ? 'green' : undefined}
+            />
+          </View>
+          <View style={styles.buttonGroup}>
+            <Button title="Submit" onPress={handleSubmit} />
+            <Button title="Cancel" onPress={closeModal} color="gray" />
+          </View>
+        </View>
+      </Animated.View>
+    )}
+
+    <GoProModal
+      isVisible={isGoProModalVisible}
+      onClose={closeGoProModal}
+      translateY={goProTranslateY}
+      panResponder={goProPanResponder}
+    />
+    <InfoModal
+      isVisible={isInfoModalVisible}
+      onClose={closeInfoModal}
+      translateY={infoTranslateY}
+      panResponder={infoPanResponder}
+    />
+    <MapModal
+      isVisible={isMapModalVisible}
+      onClose={closeMapModal}
+      translateY={mapTranslateY}
+      panResponder={mapPanResponder}
+    />
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
