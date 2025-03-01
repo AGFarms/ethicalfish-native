@@ -8,6 +8,10 @@ import { VLCPlayer } from 'react-native-vlc-media-player';
 import { useGoPro } from '../contexts/GoProContext';
 import { useWS } from '../contexts/WSContext';
 import * as fcl from "@onflow/fcl";
+import * as Location from 'expo-location';
+import { generateZkp } from '../utils/generateZkp';
+import { verifyZkp } from '../utils/verifyZkp';
+import * as FileSystem from 'react-native-fs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -41,6 +45,7 @@ export default function FishPage() {
   const [isGoProModalVisible, setIsGoProModalVisible] = useState(false);
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [isMapModalVisible, setIsMapModalVisible] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{latitude: number, longitude: number} | null>(null);
 
   const goProTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const infoTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -185,7 +190,59 @@ export default function FishPage() {
     }
   };
 
+  const generateAndVerifyZkp = async () => {
+    try {
+      // Request location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required.');
+        return;
+      }
+
+      // Get current location
+      const location = await Location.getCurrentPositionAsync({});
+      setCurrentLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+
+      // Convert coordinates to the format expected by the circuit (multiply by 1e6 to handle decimals)
+      const input = {
+        latitude: Math.round(location.coords.latitude * 1e6),
+        longitude: Math.round(location.coords.longitude * 1e6),
+        geofenceCenterLat: Math.round(location.coords.latitude * 1e6), // Using same location as center for this example
+        geofenceCenterLon: Math.round(location.coords.longitude * 1e6)
+      };
+
+      // Save input to file
+      const inputPath = `${FileSystem.DocumentDirectoryPath}/input.json`;
+      await FileSystem.writeFile(inputPath, JSON.stringify(input, null, 2));
+
+      // Generate and verify ZKP
+      const { proof, publicSignals, verificationKey } = await generateZkp(
+        input.latitude,
+        input.longitude
+      );
+
+      const verified = await verifyZkp(proof);
+
+      console.log('ZKP Generated and Verified Successfully');
+      return true;
+    } catch (error) {
+      console.error('Error in ZKP process:', error);
+      Alert.alert('Error', 'Failed to verify location.');
+      return false;
+    }
+  };
+
   const startRecording = async () => {
+    // Verify location before starting recording
+    const verified = await generateAndVerifyZkp();
+    if (!verified) {
+      Alert.alert('Location Verification Failed', 'Unable to start recording.');
+      return;
+    }
+
     setFrames([]);
     setIsRecording(true);
     frameProcessorRef.current = setInterval(captureFrame, 1000/7); // 7 FPS
