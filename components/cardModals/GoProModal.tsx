@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   stream: {
-    flex: 1,
+    flex: 1
   },
   header: {
     marginBottom: 20,

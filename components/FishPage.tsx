@@ -266,88 +266,6 @@ const proof = require('../zkVerify/proof.json');
       try {
         // Get the release frames starting from releaseStartFrame
         const releaseFrames = frames.slice(releaseStartFrame);
-        
-        // Create simple hashes (in production you'd want a proper hashing function)
-        const timestamp = Date.now().toString();
-        const bumpHash = `hash_${bumpFrame}_${timestamp}`;
-        const heroHash = `hash_${heroFrame}_${timestamp}`;
-        const releaseHashes = releaseFrames.map((frame, i) => 
-          `hash_release_${i}_${timestamp}`
-        );
-
-        // Prepare transaction arguments
-        const transactionArgs = [
-          bumpFrame,          // bump
-          bumpHash,          // bumpHash
-          heroFrame,         // hero
-          heroHash,         // heroHash
-          releaseFrames,    // release array
-          releaseHashes,    // releaseHashes array
-        ];
-
-        // Execute the transaction
-        const txId = await fcl.mutate({
-          cadence: `
-            import UnverifiedFishScan from 0x2950c37fbc229852
-
-            transaction(
-              bump: String,
-              bumpHash: String,
-              hero: String,
-              heroHash: String,
-              release: [String],
-              releaseHashes: [String]
-            ) {
-              let recipient: &{UnverifiedFishScan.CollectionPublic}
-
-              prepare(acct: AuthAccount) {
-                if acct.borrow<&UnverifiedFishScan.Collection>(from: /storage/NFTCollection) == nil {
-                  let collection <- UnverifiedFishScan.createEmptyCollection()
-                  acct.save(<-collection, to: /storage/NFTCollection)
-                  acct.link<&{UnverifiedFishScan.CollectionPublic}>(
-                    /public/NFTCollection,
-                    target: /storage/NFTCollection
-                  )
-                }
-
-                self.recipient = acct.getCapability(/public/NFTCollection)
-                  .borrow<&{UnverifiedFishScan.CollectionPublic}>()
-                  ?? panic("Could not borrow recipient's collection")
-              }
-
-              execute {
-                let newNFT <- UnverifiedFishScan.mintNFT(
-                  bump: bump,
-                  bumpHash: bumpHash,
-                  hero: hero,
-                  heroHash: heroHash,
-                  release: release,
-                  releaseHashes: releaseHashes
-                )
-
-                self.recipient.deposit(token: <-newNFT)
-              }
-            }
-          `,
-          args: (arg, t) => [
-            arg(bumpFrame, t.String),
-            arg(bumpHash, t.String),
-            arg(heroFrame, t.String),
-            arg(heroHash, t.String),
-            arg(releaseFrames, t.Array(t.String)),
-            arg(releaseHashes, t.Array(t.String))
-          ],
-          payer: fcl.authz,
-          proposer: fcl.authz,
-          authorizations: [fcl.authz],
-          limit: 999
-        });
-
-        console.log('Transaction ID:', txId);
-        
-        // Wait for transaction to be sealed
-        const txStatus = await fcl.tx(txId).onceSealed();
-        console.log('Transaction sealed:', txStatus);
 
         // Close modal and reset states
         closeModal();
@@ -841,11 +759,7 @@ const styles = StyleSheet.create({
   },
 
   previewStream: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
   },
 
   goProText: {
