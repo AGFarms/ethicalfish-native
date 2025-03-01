@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Button, StyleSheet, TouchableWithoutFeedback, Animated, PanResponder, Dimensions, Text, Image, ScrollView, Keyboard, TouchableOpacity } from 'react-native';
+import { View, Button, StyleSheet, TouchableWithoutFeedback, Animated, PanResponder, Dimensions, Text, Image, ScrollView, Keyboard, TouchableOpacity, Alert } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import GoProModal from '../components/cardModals/GoProModal';
 import InfoModal from '../components/cardModals/InfoModal';
@@ -7,8 +7,7 @@ import MapModal from '../components/cardModals/MapModal';
 import { VLCPlayer } from 'react-native-vlc-media-player';
 import { useGoPro } from '../contexts/GoProContext';
 import { useWS } from '../contexts/WSContext';
-
-
+import * as fcl from "@onflow/fcl";
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -206,19 +205,111 @@ export default function FishPage() {
   };
 
   const handleSubmit = async () => {
-    if (frames.length > 0) {
-      const submission = {
-        bump: bumpFrame,
-        hero: heroFrame,
-        release: releaseStartFrame !== null ? frames.slice(releaseStartFrame) : null,
-      };
-      console.log('Submitting frames:', submission);
+    if (frames.length > 0 && bumpFrame && heroFrame && releaseStartFrame !== null) {
+      try {
+        // Get the release frames starting from releaseStartFrame
+        const releaseFrames = frames.slice(releaseStartFrame);
+        
+        // Create simple hashes (in production you'd want a proper hashing function)
+        const timestamp = Date.now().toString();
+        const bumpHash = `hash_${bumpFrame}_${timestamp}`;
+        const heroHash = `hash_${heroFrame}_${timestamp}`;
+        const releaseHashes = releaseFrames.map((frame, i) => 
+          `hash_release_${i}_${timestamp}`
+        );
 
-      closeModal();
-      // Reset states
-      setBumpFrame(null);
-      setHeroFrame(null);
-      setReleaseStartFrame(null);
+        // Prepare transaction arguments
+        const transactionArgs = [
+          bumpFrame,          // bump
+          bumpHash,          // bumpHash
+          heroFrame,         // hero
+          heroHash,         // heroHash
+          releaseFrames,    // release array
+          releaseHashes,    // releaseHashes array
+        ];
+
+        // Execute the transaction
+        const txId = await fcl.mutate({
+          cadence: `
+            import UnverifiedFishScan from 0x2950c37fbc229852
+
+            transaction(
+              bump: String,
+              bumpHash: String,
+              hero: String,
+              heroHash: String,
+              release: [String],
+              releaseHashes: [String]
+            ) {
+              let recipient: &{UnverifiedFishScan.CollectionPublic}
+
+              prepare(acct: AuthAccount) {
+                if acct.borrow<&UnverifiedFishScan.Collection>(from: /storage/NFTCollection) == nil {
+                  let collection <- UnverifiedFishScan.createEmptyCollection()
+                  acct.save(<-collection, to: /storage/NFTCollection)
+                  acct.link<&{UnverifiedFishScan.CollectionPublic}>(
+                    /public/NFTCollection,
+                    target: /storage/NFTCollection
+                  )
+                }
+
+                self.recipient = acct.getCapability(/public/NFTCollection)
+                  .borrow<&{UnverifiedFishScan.CollectionPublic}>()
+                  ?? panic("Could not borrow recipient's collection")
+              }
+
+              execute {
+                let newNFT <- UnverifiedFishScan.mintNFT(
+                  bump: bump,
+                  bumpHash: bumpHash,
+                  hero: hero,
+                  heroHash: heroHash,
+                  release: release,
+                  releaseHashes: releaseHashes
+                )
+
+                self.recipient.deposit(token: <-newNFT)
+              }
+            }
+          `,
+          args: (arg, t) => [
+            arg(bumpFrame, t.String),
+            arg(bumpHash, t.String),
+            arg(heroFrame, t.String),
+            arg(heroHash, t.String),
+            arg(releaseFrames, t.Array(t.String)),
+            arg(releaseHashes, t.Array(t.String))
+          ],
+          payer: fcl.authz,
+          proposer: fcl.authz,
+          authorizations: [fcl.authz],
+          limit: 999
+        });
+
+        console.log('Transaction ID:', txId);
+        
+        // Wait for transaction to be sealed
+        const txStatus = await fcl.tx(txId).onceSealed();
+        console.log('Transaction sealed:', txStatus);
+
+        // Close modal and reset states
+        closeModal();
+        setBumpFrame(null);
+        setHeroFrame(null);
+        setReleaseStartFrame(null);
+
+        // Show success message
+        Alert.alert('Success', 'NFT minted successfully!');
+
+      } catch (error) {
+        console.error('Error minting NFT:', error);
+        Alert.alert('Error', 'Failed to mint NFT. Please try again.');
+      }
+    } else {
+      Alert.alert(
+        'Incomplete Selection',
+        'Please select a bump frame, hero frame, and release start frame before submitting.'
+      );
     }
   };
   
