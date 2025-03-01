@@ -224,9 +224,10 @@ export default function FishPage() {
         input.longitude
       );
 
-      const verified = await verifyZkp(proof);
+      const verified_transaction = await verifyZkp(proof);
 
       console.log('ZKP Generated and Verified Successfully');
+      console.log('Verified Transaction:', verified_transaction);
       return true;
     } catch (error) {
       console.error('Error in ZKP process:', error);
