@@ -200,29 +200,32 @@ export function GoProProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function fetchGPSData() {
-    console.log('[fetchGPSData] Starting GPS fetch via photo');
+    console.log('[fetchGPSData] Starting GPS fetch via video');
     try {
-      console.log('[fetchGPSData] Attempting to switch to photo mode');
-      const switchToPhotoResponse = await fetch('http://10.5.5.9/gp/gpControl/command/mode?p=1');
-      if (!switchToPhotoResponse.ok) {
-        console.error('[fetchGPSData] Failed to switch to photo mode:', switchToPhotoResponse.status);
-        throw new Error('Failed to switch to photo mode');
+      console.log('[fetchGPSData] Attempting to switch to video mode');
+      const switchToVideoResponse = await fetch('http://10.5.5.9/gp/gpControl/command/mode?p=0');
+      if (!switchToVideoResponse.ok) {
+        throw new Error('Failed to switch to video mode');
       }
-      console.log('[fetchGPSData] Successfully switched to photo mode');
       
-      console.log('[fetchGPSData] Taking photo...');
-      const captureResponse = await fetch('http://10.5.5.9/gp/gpControl/command/shutter?p=1');
-      if (!captureResponse.ok) {
-        console.error('[fetchGPSData] Failed to take photo:', captureResponse.status);
-        throw new Error('Failed to take photo');
+      console.log('[fetchGPSData] Starting video recording...');
+      const startRecordResponse = await fetch('http://10.5.5.9/gp/gpControl/command/shutter?p=1');
+      if (!startRecordResponse.ok) {
+        throw new Error('Failed to start recording');
       }
-      console.log('[fetchGPSData] Photo captured successfully');
       
-      console.log('[fetchGPSData] Waiting for photo processing...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('[fetchGPSData] Stopping video recording...');
+      const stopRecordResponse = await fetch('http://10.5.5.9/gp/gpControl/command/shutter?p=0');
+      if (!stopRecordResponse.ok) {
+        throw new Error('Failed to stop recording');
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('[fetchGPSData] Fetching media list');
-      const mediaListResponse = await fetch('http://10.5.5.9/gp/gpControl/command/medialist');
+      const mediaListResponse = await fetch('http://10.5.5.9/gp/gpMediaList');
       const mediaList = await mediaListResponse.json();
       console.log('[fetchGPSData] Media list retrieved:', mediaList);
       
@@ -230,37 +233,22 @@ export function GoProProvider({ children }: { children: React.ReactNode }) {
         const lastMedia = mediaList.media[0].fs[0];
         console.log('[fetchGPSData] Found last media item:', lastMedia);
         
-        console.log('[fetchGPSData] Fetching metadata for media:', lastMedia.n);
         const metadataResponse = await fetch(`http://10.5.5.9/gp/gpControl/media/meta?p=${lastMedia.n}`);
         const metadata = await metadataResponse.json();
-        console.log('[fetchGPSData] Retrieved metadata:', metadata);
         
         if (metadata.gps && metadata.gps.latitude && metadata.gps.longitude) {
-          console.log('[fetchGPSData] Valid GPS data found:', {
-            latitude: metadata.gps.latitude,
-            longitude: metadata.gps.longitude
-          });
-          
           setLocation({
             latitude: metadata.gps.latitude,
             longitude: metadata.gps.longitude
           });
-        } else {
-          console.log('[fetchGPSData] No valid GPS data in metadata');
         }
-      } else {
-        console.log('[fetchGPSData] No media found in list');
       }
 
-      console.log('[fetchGPSData] Cleaning up - deleting all photos');
       await deleteAllPhotos();
-      console.log('[fetchGPSData] Cleanup complete');
 
     } catch (error) {
       console.error('[fetchGPSData] Error during GPS fetch:', error);
-      console.log('[fetchGPSData] Attempting cleanup after error');
       await deleteAllPhotos();
-      console.log('[fetchGPSData] Error cleanup complete');
     }
   }
 
