@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 interface FishNFT {
   id: string;
@@ -13,39 +14,73 @@ interface FishNFT {
 const mockFishNFTs: FishNFT[] = [
   {
     id: '1',
-    name: 'Golden Tuna',
+    name: 'Tuna',
     rarity: 'Legendary',
     value: 0.5,
     imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
   },
   {
     id: '2',
-    name: 'Crystal Bass',
+    name: 'Bass',
     rarity: 'Epic',
     value: 0.3,
     imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
   },
+  {
+    id: '3', 
+    name: 'Trout',
+    rarity: 'Rare',
+    value: 0.2,
+    imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
+  },
+  {
+    id: '4',
+    name: 'Salmon',
+    rarity: 'Uncommon',
+    value: 0.15,
+    imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
+  },
+  {
+    id: '5',
+    name: 'Carp',
+    rarity: 'Common',
+    value: 0.1,
+    imageUrl: require('@/assets/images/EthicalFishLogo-green.png')
+  }
 ];
 
 export default function ExchangePage() {
   const [selectedFish, setSelectedFish] = useState<FishNFT | null>(null);
+  const [availableFish, setAvailableFish] = useState<FishNFT[]>(mockFishNFTs);
+  const confettiRef = useRef<any>(null);
 
   const handleClaim = (fish: FishNFT) => {
-    // Implement your claiming logic here
-    console.log(`Claiming ${fish.value} CRYPTO for ${fish.name}`);
+    confettiRef.current?.start();
+    setAvailableFish(prev => prev.filter(f => f.id !== fish.id));
+    if (selectedFish?.id === fish.id) {
+      setSelectedFish(null);
+    }
+    console.log(`Claiming ${fish.value} FISH for ${fish.name}`);
   };
 
   return (
     <View
       style={styles.container}
     >
+      <ConfettiCannon
+        ref={confettiRef}
+        count={200}
+        origin={{x: -10, y: 0}}
+        autoStart={false}
+        fadeOut={true}
+      />
       <View style={styles.header}>
         <Text style={styles.title}>Fish Exchange</Text>
         <Text style={styles.subtitle}>Trade your caught fish for crypto!</Text>
       </View>
 
       <ScrollView style={styles.nftList}>
-        {mockFishNFTs.map((fish) => (
+        {availableFish.map((fish) => (
           <TouchableOpacity
             key={fish.id}
             style={[
@@ -61,7 +96,7 @@ export default function ExchangePage() {
             <View style={styles.fishInfo}>
               <Text style={styles.fishName}>{fish.name}</Text>
               <Text style={styles.fishRarity}>{fish.rarity}</Text>
-              <Text style={styles.fishValue}>{fish.value} CRYPTO</Text>
+              <Text style={styles.fishValue}>{fish.value} FISH</Text>
             </View>
             <TouchableOpacity
               style={styles.claimButton}
@@ -77,7 +112,7 @@ export default function ExchangePage() {
         <View style={styles.selectedFishDetails}>
           <Text style={styles.detailsTitle}>Selected Fish Details</Text>
           <Text style={styles.detailsText}>
-            Trading {selectedFish.name} will earn you {selectedFish.value} CRYPTO
+            Trading {selectedFish.name} will earn you {selectedFish.value} FISH
           </Text>
         </View>
       )}

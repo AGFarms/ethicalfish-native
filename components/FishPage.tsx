@@ -12,7 +12,7 @@ import * as fcl from "@onflow/fcl";
 fcl.config().put("accessNode.api", "https://rest-mainnet.onflow.org");
 import * as Location from 'expo-location';
 //import { generateZkp } from '../utils/generateZkp';
-import { verifyZkp } from '../utils/verifyZkp';
+//import { verifyZkp } from '../utils/verifyZkp';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -190,52 +190,6 @@ export default function FishPage() {
     }
   };
 
-  // const generateAndVerifyZkp = async () => {
-  //   try {
-  //     // Request location permission
-  //     const { status } = await Location.requestForegroundPermissionsAsync();
-  //     if (status !== 'granted') {
-  //       Alert.alert('Permission Denied', 'Location permission is required.');
-  //       return;
-  //     }
-  //
-  //     // Get current location
-  //     const location = await Location.getCurrentPositionAsync({});
-  //     setCurrentLocation({
-  //       latitude: location.coords.latitude,
-  //       longitude: location.coords.longitude
-  //     });
-  //
-  //     // Convert coordinates to the format expected by the circuit (multiply by 1e6 to handle decimals)
-  //     const input = {
-  //       latitude: Math.round(location.coords.latitude * 1e6),
-  //       longitude: Math.round(location.coords.longitude * 1e6),
-  //       geofenceCenterLat: Math.round(location.coords.latitude * 1e6), // Using same location as center for this example
-  //       geofenceCenterLon: Math.round(location.coords.longitude * 1e6)
-  //     };
-  //
-  // Save input to file
-  //      const inputPath = `${FileSystem.DocumentDirectoryPath}/input.json`;
-  //    await FileSystem.writeFile(inputPath, JSON.stringify(input, null, 2));
-
-  // Generate and verify ZKP
-  //     const { proof, publicSignals, verificationKey } = await generateZkp(
-  //       input.latitude,
-  //       input.longitude
-  //     );
-  const proof = require('../zkVerify/proof.json');
-  const verified_transaction = await verifyZkp(proof);
-
-  console.log('ZKP Generated and Verified Successfully');
-  console.log('Verified Transaction:', verified_transaction);
-  return true;
-} catch (error) {
-  console.error('Error in ZKP process:', error);
-  Alert.alert('Error', 'Failed to verify location.');
-  return false;
-}
-  };
-
 const startRecording = async () => {
   setFrames([]);
   setIsRecording(true);
@@ -409,11 +363,15 @@ return (
     )}
 
     <TouchableOpacity style={styles.leftCard} onPress={openInfoModal}>
-      <Text style={styles.leftCardText}>Info</Text>
+      <Text style={styles.leftCardText}>ID</Text>
     </TouchableOpacity>
 
     <TouchableOpacity style={styles.mapCard} onPress={openMapModal}>
-      <Text style={styles.leftCardText}>Map</Text>
+      <Image 
+        source={require('../assets/images/map-icon.jpg')} 
+        style={styles.mapImage}
+        resizeMode="contain"
+      />
     </TouchableOpacity>
 
     <View style={styles.metadataContainer}>
@@ -743,6 +701,7 @@ const styles = StyleSheet.create({
   },
 
   goProPreview: {
+    flex:1,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -754,6 +713,8 @@ const styles = StyleSheet.create({
 
   previewStream: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
 
   goProText: {
@@ -797,10 +758,10 @@ const styles = StyleSheet.create({
 
   mapCard: {
     position: 'absolute',
-    top: 130,
-    right: 240,
-    width: 140,
-    height: 80,
+    top: 180,
+    right: 20,
+    width: 120,
+    height: 120,
     borderRadius: 12,
     backgroundColor: 'rgba(0, 0, 0, 0.9)',
     justifyContent: 'center',
@@ -815,6 +776,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     borderWidth: 1,
     borderColor: '#FFF',
+    overflow: 'hidden',
   },
 
   metadataContainer: {
@@ -848,5 +810,10 @@ const styles = StyleSheet.create({
 
   metadataText: {
     fontSize: 24,
+  },
+
+  mapImage: {
+    width: '140%',
+    height: '120%',
   },
 });
